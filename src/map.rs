@@ -30,7 +30,6 @@ pub type Result<T> = std::result::Result<T, Error>;
 
 type Index = u32;
 
-
 // The size of the mime header
 // 4 byte magic + version
 const HEADER_SIZE: usize = 4 + std::mem::size_of::<u32>();
@@ -266,7 +265,7 @@ impl Map {
             let sector = Sector::deserialize(&buffer[start..start+sector_size])?;
             sectors.push(sector);
 
-            offset += sector_size;
+            offset += sector_size + 8;
         }
 
         Ok(Self::new(sectors))
