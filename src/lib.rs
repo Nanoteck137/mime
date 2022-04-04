@@ -40,7 +40,7 @@ mod tests {
     fn vertex_serialize() {
         let vertex = Vertex::new(0.0, 1.0, 2.0, [3.0, 4.0, 5.0, 6.0]);
         let mut buffer = Vec::new();
-        vertex.serialize(&mut buffer);
+        vertex.serialize(&mut buffer).unwrap();
 
         let mut index = 0;
 
@@ -66,7 +66,7 @@ mod tests {
 
         let sector = Sector::new(vertex_buffer, index_buffer);
         let mut buffer = Vec::new();
-        sector.serialize(&mut buffer);
+        sector.serialize(&mut buffer).unwrap();
 
         let mut index = 0;
 
@@ -100,7 +100,7 @@ mod tests {
         let map = Map::new(sectors);
 
         let mut buffer = Vec::new();
-        map.serialize(&mut buffer);
+        map.serialize(&mut buffer).unwrap();
 
         let mut index = 0;
 

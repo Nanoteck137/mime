@@ -21,9 +21,12 @@ pub enum Error {
     ConvertToUsizeFailed,
     FileCreationFailed(std::io::Error),
     FileWriteFailed(std::io::Error),
-    BufferToSmall,
     IncorrectMagic,
     IncorrectVersion,
+
+    BufferToSmallVertex,
+    BufferToSmallSector,
+    BufferToSmallMap,
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -76,7 +79,7 @@ impl Vertex {
 
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < VERTEX_SIZE {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallVertex);
         }
 
         let x = f32::from_le_bytes(
@@ -149,17 +152,25 @@ impl Sector {
 
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < std::mem::size_of::<u64>() * 2 {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallSector);
         }
 
-        let vertex_count = u64::from_le_bytes(buffer[0..8].try_into().map_err(|_| Error::ArrayConvertionFailed)?);
-        let vertex_count: usize = vertex_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
-        let index_count = u64::from_le_bytes(buffer[8..16].try_into().map_err(|_| Error::ArrayConvertionFailed)?);
-        let index_count: usize = index_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+        let vertex_count = u64::from_le_bytes(
+            buffer[0..8].try_into()
+                .map_err(|_| Error::ArrayConvertionFailed)?);
+        let vertex_count: usize =
+            vertex_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+
+        let index_count = u64::from_le_bytes(
+            buffer[8..16].try_into()
+                .map_err(|_| Error::ArrayConvertionFailed)?);
+        let index_count: usize =
+            index_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+
         let buffer = &buffer[16..];
 
         if buffer.len() < VERTEX_SIZE * vertex_count {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallSector);
         }
 
         let mut vertex_buffer = Vec::with_capacity(vertex_count);
@@ -176,13 +187,15 @@ impl Sector {
         let mut index_buffer = Vec::with_capacity(index_count);
 
         if buffer.len() < INDEX_SIZE * index_count {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallSector);
         }
 
         for i in 0..index_count {
             let start = i * INDEX_SIZE;
             let buffer = &buffer[start..start + INDEX_SIZE];
-            let index = u32::from_le_bytes(buffer.try_into().map_err(|_| Error::ArrayConvertionFailed)?);
+            let index = u32::from_le_bytes(
+                buffer.try_into()
+                    .map_err(|_| Error::ArrayConvertionFailed)?);
             index_buffer.push(index);
         }
 
@@ -218,7 +231,9 @@ impl Map {
             let mut sector_buffer = Vec::new();
             sector.serialize(&mut sector_buffer)?;
 
-            let sector_size: u64 = sector_buffer.len().try_into().map_err(|_| Error::ConvertToU64Failed)?;
+            let sector_size: u64 =
+                sector_buffer.len().try_into()
+                    .map_err(|_| Error::ConvertToU64Failed)?;
             buffer.extend_from_slice(&sector_size.to_le_bytes());
             buffer.extend_from_slice(&sector_buffer);
         }
@@ -228,7 +243,7 @@ impl Map {
 
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < HEADER_SIZE {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallMap);
         }
 
         let magic = &buffer[0..4];
@@ -236,7 +251,9 @@ impl Map {
             return Err(Error::IncorrectMagic);
         }
 
-        let version = u32::from_le_bytes(buffer[4..8].try_into().map_err(|_| Error::ArrayConvertionFailed)?);
+        let version = u32::from_le_bytes(
+            buffer[4..8].try_into()
+                .map_err(|_| Error::ArrayConvertionFailed)?);
         if version != CURRENT_VERSION {
             return Err(Error::IncorrectVersion);
         }
@@ -244,11 +261,14 @@ impl Map {
         let buffer = &buffer[8..];
 
         if buffer.len() < std::mem::size_of::<u64>() {
-            return Err(Error::BufferToSmall);
+            return Err(Error::BufferToSmallMap);
         }
 
-        let sector_count = u64::from_le_bytes(buffer[0..8].try_into().map_err(|_| Error::ArrayConvertionFailed)?);
-        let sector_count: usize = sector_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+        let sector_count = u64::from_le_bytes(
+            buffer[0..8].try_into()
+                .map_err(|_| Error::ArrayConvertionFailed)?);
+        let sector_count: usize =
+            sector_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
 
         let buffer = &buffer[8..];
 
@@ -256,13 +276,18 @@ impl Map {
 
         let mut offset = 0;
 
-        for i in 0..sector_count {
+        for _i in 0..sector_count {
             let start = offset;
-            let sector_size = u64::from_le_bytes(buffer[start..start + 8].try_into().map_err(|_| Error::ArrayConvertionFailed)?);
-            let sector_size: usize = sector_size.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+            let sector_size = u64::from_le_bytes(
+                buffer[start..start + 8].try_into()
+                    .map_err(|_| Error::ArrayConvertionFailed)?);
+            let sector_size: usize =
+                sector_size.try_into()
+                    .map_err(|_| Error::ConvertToUsizeFailed)?;
             let start = start + 8;
 
-            let sector = Sector::deserialize(&buffer[start..start+sector_size])?;
+            let sector =
+                Sector::deserialize(&buffer[start..start + sector_size])?;
             sectors.push(sector);
 
             offset += sector_size + 8;
@@ -283,7 +308,8 @@ impl Map {
         // Write the buffer to a file
         let mut file = File::create(filename)
             .map_err(|e| Error::FileCreationFailed(e))?;
-        file.write_all(&buffer[..]).map_err(|e| Error::FileWriteFailed(e))?;
+        file.write_all(&buffer[..])
+            .map_err(|e| Error::FileWriteFailed(e))?;
 
         Ok(())
     }
