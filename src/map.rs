@@ -1,67 +1,73 @@
 //! Custom map format
 
-// NOTE(patrik):
-// Map Format:
-//      Header: 8 bytes (Magic: MIME Version: 4bytes)
-//      Sectors:
-//          - Vertex Buffer
-//          - Index Buffer
-//          - Collision Boxes
+// TODO(patrik): Should we do this?
+use crate::*;
 
 use std::path::Path;
 use std::fs::File;
 use std::io::Write;
 
+// TODO(patrik): Make a better verison
+/// The current version of the file format
 pub const CURRENT_VERSION: u32 = 1;
-
-#[derive(Debug)]
-pub enum Error {
-    ArrayConvertionFailed,
-    ConvertToU64Failed,
-    ConvertToUsizeFailed,
-    FileCreationFailed(std::io::Error),
-    FileWriteFailed(std::io::Error),
-    IncorrectMagic,
-    IncorrectVersion,
-
-    BufferToSmallVertex,
-    BufferToSmallSector,
-    BufferToSmallMap,
-}
-
-pub type Result<T> = std::result::Result<T, Error>;
 
 type Index = u32;
 
-// The size of the mime header
-// 4 byte magic + version
+/// The size of the mime header
 const HEADER_SIZE: usize = 4 + std::mem::size_of::<u32>();
 
-// The header magic
-const HEADER_MAGIC: &'static [u8] = b"MIME";
+/// The header magic
+const HEADER_MAGIC: &[u8] = b"MIME";
 
-// The size of a single vertex (x, y, z, r, g, b, a)
+/// The size of a single vertex (x, y, z, r, g, b, a)
 const VERTEX_SIZE: usize = 7 * std::mem::size_of::<f32>();
 
-// The size of a single index
+/// The size of a single index
 const INDEX_SIZE: usize = std::mem::size_of::<u32>();
 
+/// A single vertex in 3D space
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Vertex {
+    /// X position
     pub x: f32,
+    /// Y position
     pub y: f32,
+    /// Z position
     pub z: f32,
 
+    /// The color of the vertex (r, g, b, a)
     pub color: [f32; 4],
 }
 
 impl Vertex {
+    /// Creates a new vertex
+    ///
+    /// # Arguments
+    ///
+    /// * `x` - The x position
+    /// * `y` - The y position
+    /// * `z` - The z position
+    /// * `color` - The color (r, g, b, a)
+    ///
+    /// # Returns
+    ///
+    /// * [Self] - The new vertex
     pub fn new(x: f32, y: f32, z: f32, color: [f32; 4]) -> Self {
         Self {
             x, y, z, color
         }
     }
 
+    /// Serialize a vertex the to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we use to append the data to
+    ///
+    /// # Returns
+    ///
+    /// * `Ok()` - Successfully serialized the vertex
+    /// * `Err(`[Error]`)` - Failed to serialize the vertex
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
         // Vertex Position (x, y)
         buffer.extend_from_slice(&self.x.to_le_bytes());
@@ -77,6 +83,16 @@ impl Vertex {
         Ok(())
     }
 
+    /// Deserialize a vertex to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we should deserialize
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(`[Self]`)` - Successfully deserialized the vertex
+    /// * `Err(`[Error]`)` - Failed to deserialize the vertex
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < VERTEX_SIZE {
             return Err(Error::BufferToSmallVertex);
@@ -84,37 +100,51 @@ impl Vertex {
 
         let x = f32::from_le_bytes(
             buffer[0..4].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
         let y = f32::from_le_bytes(
             buffer[4..8].try_into()
-            .map_err(|_| Error::ArrayConvertionFailed)?);
+            .map_err(Error::SliceConvertionError)?);
         let z = f32::from_le_bytes(
             buffer[8..12].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
 
         let r = f32::from_le_bytes(
             buffer[12..16].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
         let g = f32::from_le_bytes(
             buffer[16..20].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
         let b = f32::from_le_bytes(
             buffer[20..24].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
         let a = f32::from_le_bytes(
             buffer[24..28].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
 
         Ok(Vertex::new(x, y, z, [r, g, b, a]))
     }
 }
 
+/// A sector of the map contains the mesh
 pub struct Sector {
+    /// The vertex buffer of the mesh
     pub vertex_buffer: Vec<Vertex>,
+
+    /// The index buffer of the mesh
     pub index_buffer: Vec<Index>,
 }
 
 impl Sector {
+    /// Creates a new sector
+    ///
+    /// # Arguments
+    ///
+    /// * `vertex_buffer` - The vertices for the mesh of this sector
+    /// * `index_buffer` - The indices for the mesh of this sector
+    ///
+    /// # Returns
+    ///
+    /// * [`Self`] - The new sector
     pub fn new(vertex_buffer: Vec<Vertex>, index_buffer: Vec<Index>)
         -> Sector
     {
@@ -124,17 +154,26 @@ impl Sector {
         }
     }
 
+    /// Serialize the sector to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we use to append the data to
+    ///
+    /// # Returns
+    ///
+    /// * `Ok()` - Successfully serialized the sector
+    /// * `Err(`[Error]`)` - Failed to serialize the sector
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
         // Vertex buffer count
         let count: u64 =
             self.vertex_buffer.len().try_into()
-                .map_err(|_| Error::ConvertToU64Failed)?;
+                .map_err(Error::IntegerConvertionError)?;
         buffer.extend_from_slice(&count.to_le_bytes());
 
         // Index buffer count
-        let count: u64 =
-            self.index_buffer.len().try_into()
-                .map_err(|_| Error::ConvertToU64Failed)?;
+        let count: u64 = self.index_buffer.len().try_into()
+            .map_err(Error::IntegerConvertionError)?;
         buffer.extend_from_slice(&count.to_le_bytes());
 
         // Serialize the vertex buffer
@@ -150,6 +189,16 @@ impl Sector {
         Ok(())
     }
 
+    /// Deserialize the sector to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we should deserialize
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(`[Self]`)` - Successfully deserialized the sector
+    /// * `Err(`[Error]`)` - Failed to deserialize the sector
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < std::mem::size_of::<u64>() * 2 {
             return Err(Error::BufferToSmallSector);
@@ -157,15 +206,15 @@ impl Sector {
 
         let vertex_count = u64::from_le_bytes(
             buffer[0..8].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
-        let vertex_count: usize =
-            vertex_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+                .map_err(Error::SliceConvertionError)?);
+        let vertex_count: usize = vertex_count.try_into()
+            .map_err(Error::IntegerConvertionError)?;
 
         let index_count = u64::from_le_bytes(
             buffer[8..16].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
-        let index_count: usize =
-            index_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+                .map_err(Error::SliceConvertionError)?);
+        let index_count: usize = index_count.try_into()
+            .map_err(Error::IntegerConvertionError)?;
 
         let buffer = &buffer[16..];
 
@@ -178,7 +227,7 @@ impl Sector {
         for i in 0..vertex_count {
             let start = i * VERTEX_SIZE;
             let buffer = &buffer[start..start + VERTEX_SIZE];
-            let vertex = Vertex::deserialize(&buffer)?;
+            let vertex = Vertex::deserialize(buffer)?;
             vertex_buffer.push(vertex);
         }
 
@@ -195,7 +244,7 @@ impl Sector {
             let buffer = &buffer[start..start + INDEX_SIZE];
             let index = u32::from_le_bytes(
                 buffer.try_into()
-                    .map_err(|_| Error::ArrayConvertionFailed)?);
+                    .map_err(Error::SliceConvertionError)?);
             index_buffer.push(index);
         }
 
@@ -203,17 +252,38 @@ impl Sector {
     }
 }
 
+/// The map structure containing infomation about the map
 pub struct Map {
+    /// The sectors of the map
     pub sectors: Vec<Sector>,
 }
 
 impl Map {
+    /// Create a new map structure
+    ///
+    /// # Arguments
+    ///
+    /// * `sectors` - Map sectors
+    ///
+    /// # Returns
+    ///
+    /// * [Self] - Returns the created map structure
     pub fn new(sectors: Vec<Sector>) -> Self {
         Self {
             sectors
         }
     }
 
+    /// Serialize the map to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we use to append the data to
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Successfully serialized the map
+    /// * `Err(`[Error]`)` - Failed to serialize the map
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
         // Magic
         buffer.extend_from_slice(b"MIME");
@@ -223,7 +293,7 @@ impl Map {
         // Serialize the sector count
         let count: u64 =
             self.sectors.len().try_into()
-                .map_err(|_| Error::ConvertToU64Failed)?;
+                .map_err(Error::IntegerConvertionError)?;
         buffer.extend_from_slice(&count.to_le_bytes());
 
         // Serialize all the sectors
@@ -233,7 +303,7 @@ impl Map {
 
             let sector_size: u64 =
                 sector_buffer.len().try_into()
-                    .map_err(|_| Error::ConvertToU64Failed)?;
+                    .map_err(Error::IntegerConvertionError)?;
             buffer.extend_from_slice(&sector_size.to_le_bytes());
             buffer.extend_from_slice(&sector_buffer);
         }
@@ -241,6 +311,17 @@ impl Map {
         Ok(())
     }
 
+    /// Deserialize the buffer and create a map structure
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we should deserialize
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(`[Map]`)` - Successfully derserialized the data and created a
+    ///                   map structure
+    /// * `Err(`[Error]`)` - Failed to deserialize the data
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < HEADER_SIZE {
             return Err(Error::BufferToSmallMap);
@@ -253,7 +334,7 @@ impl Map {
 
         let version = u32::from_le_bytes(
             buffer[4..8].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
+                .map_err(Error::SliceConvertionError)?);
         if version != CURRENT_VERSION {
             return Err(Error::IncorrectVersion);
         }
@@ -266,9 +347,9 @@ impl Map {
 
         let sector_count = u64::from_le_bytes(
             buffer[0..8].try_into()
-                .map_err(|_| Error::ArrayConvertionFailed)?);
-        let sector_count: usize =
-            sector_count.try_into().map_err(|_| Error::ConvertToUsizeFailed)?;
+                .map_err(Error::SliceConvertionError)?);
+        let sector_count: usize = sector_count.try_into()
+            .map_err(Error::IntegerConvertionError)?;
 
         let buffer = &buffer[8..];
 
@@ -280,10 +361,10 @@ impl Map {
             let start = offset;
             let sector_size = u64::from_le_bytes(
                 buffer[start..start + 8].try_into()
-                    .map_err(|_| Error::ArrayConvertionFailed)?);
+                    .map_err(Error::SliceConvertionError)?);
             let sector_size: usize =
                 sector_size.try_into()
-                    .map_err(|_| Error::ConvertToUsizeFailed)?;
+                    .map_err(Error::IntegerConvertionError)?;
             let start = start + 8;
 
             let sector =
@@ -296,6 +377,19 @@ impl Map {
         Ok(Self::new(sectors))
     }
 
+    /// Serialize the map and write the serialized data to a file
+    ///
+    /// # Arguments
+    ///
+    /// * `filename` - Filename of the file we should create to write
+    ///                the serialized data to
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(())` - Successfully serialized the map and wrote the date
+    ///              to the file
+    /// * `Err(`[Error]`)` - Failed to serialize the map or write the data
+    ///                      to the file
     pub fn save_to_file<P>(&self, filename: P) -> Result<()>
         where P: AsRef<Path>
     {
@@ -307,9 +401,9 @@ impl Map {
 
         // Write the buffer to a file
         let mut file = File::create(filename)
-            .map_err(|e| Error::FileCreationFailed(e))?;
+            .map_err(Error::FileCreationFailed)?;
         file.write_all(&buffer[..])
-            .map_err(|e| Error::FileWriteFailed(e))?;
+            .map_err(Error::FileWriteFailed)?;
 
         Ok(())
     }
