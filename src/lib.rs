@@ -1,7 +1,7 @@
 //! Mime is a library for a simple Map format used primarily for my 3D engines
 #![warn(missing_docs)]
 
-pub use map::{ Vertex, Map, Sector };
+pub use map::{ Vertex, Map, Mesh, Sector };
 
 pub mod map;
 

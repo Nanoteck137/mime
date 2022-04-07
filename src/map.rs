@@ -125,8 +125,7 @@ impl Vertex {
     }
 }
 
-/// A sector of the map contains the mesh
-pub struct Sector {
+pub struct Mesh {
     /// The vertex buffer of the mesh
     pub vertex_buffer: Vec<Vertex>,
 
@@ -134,27 +133,15 @@ pub struct Sector {
     pub index_buffer: Vec<Index>,
 }
 
-impl Sector {
-    /// Creates a new sector
-    ///
-    /// # Arguments
-    ///
-    /// * `vertex_buffer` - The vertices for the mesh of this sector
-    /// * `index_buffer` - The indices for the mesh of this sector
-    ///
-    /// # Returns
-    ///
-    /// * [`Self`] - The new sector
-    pub fn new(vertex_buffer: Vec<Vertex>, index_buffer: Vec<Index>)
-        -> Sector
-    {
+impl Mesh {
+    pub fn new(vertex_buffer: Vec<Vertex>, index_buffer: Vec<u32>) -> Self {
         Self {
             vertex_buffer,
             index_buffer,
         }
     }
 
-    /// Serialize the sector to a buffer
+    /// Serialize the mesh to a buffer
     ///
     /// # Arguments
     ///
@@ -162,8 +149,8 @@ impl Sector {
     ///
     /// # Returns
     ///
-    /// * `Ok()` - Successfully serialized the sector
-    /// * `Err(`[Error]`)` - Failed to serialize the sector
+    /// * `Ok()` - Successfully serialized the mesh
+    /// * `Err(`[Error]`)` - Failed to serialize the mesh
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
         // Vertex buffer count
         let count: u64 =
@@ -189,7 +176,7 @@ impl Sector {
         Ok(())
     }
 
-    /// Deserialize the sector to a buffer
+    /// Deserialize the mesh to a buffer
     ///
     /// # Arguments
     ///
@@ -197,10 +184,11 @@ impl Sector {
     ///
     /// # Returns
     ///
-    /// * `Ok(`[Self]`)` - Successfully deserialized the sector
-    /// * `Err(`[Error]`)` - Failed to deserialize the sector
+    /// * `Ok(`[Self]`)` - Successfully deserialized the mesh
+    /// * `Err(`[Error]`)` - Failed to deserialize the mesh
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
         if buffer.len() < std::mem::size_of::<u64>() * 2 {
+            // TODO(patrik): Change this error
             return Err(Error::BufferToSmallSector);
         }
 
@@ -249,6 +237,117 @@ impl Sector {
         }
 
         Ok(Self::new(vertex_buffer, index_buffer))
+    }
+}
+
+/// A sector of the map contains the mesh
+pub struct Sector {
+    pub floor_mesh: Mesh,
+    pub ceiling_mesh: Mesh,
+    pub wall_mesh: Mesh,
+}
+
+impl Sector {
+    /// Creates a new sector
+    ///
+    /// # Arguments
+    ///
+    /// * `floor_mesh`   - The mesh of the floor for this sector
+    /// * `ceiling_mesh` - The mesh of the ceiling for this sector
+    /// * `wall_mesh`    - The mesh of the walls for this sector
+    ///
+    /// # Returns
+    ///
+    /// * [`Self`] - The new sector
+    pub fn new(floor_mesh: Mesh, ceiling_mesh: Mesh, wall_mesh: Mesh)
+        -> Sector
+    {
+        Self {
+            floor_mesh,
+            ceiling_mesh,
+            wall_mesh,
+        }
+    }
+
+    /// Serialize the sector to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we use to append the data to
+    ///
+    /// # Returns
+    ///
+    /// * `Ok()` - Successfully serialized the sector
+    /// * `Err(`[Error]`)` - Failed to serialize the sector
+    pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
+        let mut temp_buffer = Vec::new();
+        self.floor_mesh.serialize(&mut temp_buffer)?;
+
+        let size: u64 = temp_buffer.len().try_into()
+            .map_err(Error::IntegerConvertionError)?;
+
+        buffer.extend_from_slice(&size.to_le_bytes());
+        buffer.extend_from_slice(&temp_buffer);
+
+        let mut temp_buffer = Vec::new();
+        self.ceiling_mesh.serialize(&mut temp_buffer)?;
+
+        let size: u64 = temp_buffer.len().try_into()
+            .map_err(Error::IntegerConvertionError)?;
+
+        buffer.extend_from_slice(&size.to_le_bytes());
+        buffer.extend_from_slice(&temp_buffer);
+
+        let mut temp_buffer = Vec::new();
+        self.wall_mesh.serialize(&mut temp_buffer)?;
+
+        let size: u64 = temp_buffer.len().try_into()
+            .map_err(Error::IntegerConvertionError)?;
+
+        buffer.extend_from_slice(&size.to_le_bytes());
+        buffer.extend_from_slice(&temp_buffer);
+
+        Ok(())
+    }
+
+    // TODO(patrik): Change this comment
+    /// Deserialize the sector to a buffer
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The buffer we should deserialize
+    ///
+    /// # Returns
+    ///
+    /// * `Ok(`[Self]`)` - Successfully deserialized the mesh
+    /// * `Err(`[Error]`)` - Failed to deserialize the mesh
+    pub fn deserialize(buffer: &[u8]) -> Result<Self> {
+        let floor_mesh_size = u64::from_le_bytes(
+            buffer[0..8].try_into()
+                .map_err(Error::SliceConvertionError)?);
+        let floor_mesh_size: usize = floor_mesh_size.try_into()
+            .map_err(Error::IntegerConvertionError)?;
+        let buffer = &buffer[8..];
+
+        let floor_mesh = Mesh::deserialize(&buffer[0..floor_mesh_size])?;
+        let buffer = &buffer[floor_mesh_size..];
+
+        let ceiling_mesh_size = u64::from_le_bytes(buffer[0..8].try_into().map_err(Error::SliceConvertionError)?);
+        let ceiling_mesh_size: usize = ceiling_mesh_size.try_into()
+            .map_err(Error::IntegerConvertionError)?;
+        let buffer = &buffer[8..];
+
+        let ceiling_mesh = Mesh::deserialize(&buffer[0..ceiling_mesh_size])?;
+        let buffer = &buffer[ceiling_mesh_size..];
+
+        let wall_mesh_size = u64::from_le_bytes(buffer[0..8].try_into().map_err(Error::SliceConvertionError)?);
+        let wall_mesh_size: usize = wall_mesh_size.try_into()
+            .map_err(Error::IntegerConvertionError)?;
+        let buffer = &buffer[8..];
+
+        let wall_mesh = Mesh::deserialize(&buffer[0..wall_mesh_size])?;
+
+        Ok(Sector::new(floor_mesh, ceiling_mesh, wall_mesh))
     }
 }
 

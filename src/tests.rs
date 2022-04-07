@@ -52,7 +52,7 @@ mod tests {
     }
 
     #[test]
-    fn sector_serialize() {
+    fn mesh_serialize() {
         let mut vertex_buffer = Vec::new();
         vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
         vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
@@ -61,9 +61,10 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let sector = Sector::new(vertex_buffer, index_buffer);
+        let mesh = Mesh::new(vertex_buffer, index_buffer);
+
         let mut buffer = Vec::new();
-        sector.serialize(&mut buffer).unwrap();
+        mesh.serialize(&mut buffer);
 
         let mut index = 0;
 
@@ -82,6 +83,38 @@ mod tests {
     }
 
     #[test]
+    fn sector_serialize() {
+        let mut vertex_buffer = Vec::new();
+        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+
+        let index_buffer = vec![0, 1, 2, 2, 3, 0];
+
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+
+        let sector = Sector::new(floor_mesh, ceiling_mesh, wall_mesh);
+        let mut buffer = Vec::new();
+        sector.serialize(&mut buffer).unwrap();
+
+        let mut index = 0;
+
+        let expected_size = 8 + std::mem::size_of::<Vertex>() * 4 +
+            std::mem::size_of::<u32>() * 6 + 8;
+
+        assert_eq!(parse_u64!(buffer, index), expected_size as u64);
+        skip!(index, expected_size);
+
+        assert_eq!(parse_u64!(buffer, index), expected_size as u64);
+        skip!(index, expected_size);
+
+        assert_eq!(parse_u64!(buffer, index), expected_size as u64);
+    }
+
+    #[test]
     fn map_serialize() {
         let mut vertex_buffer = Vec::new();
         vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
@@ -91,8 +124,12 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+
         let mut sectors = Vec::new();
-        sectors.push(Sector::new(vertex_buffer, index_buffer));
+        sectors.push(Sector::new(floor_mesh, ceiling_mesh, wall_mesh));
 
         let map = Map::new(sectors);
 
@@ -122,7 +159,7 @@ mod tests {
         assert_eq!(result, vertex);
     }
 
-    fn compare_sector(a: &Sector, b: &Sector) {
+    fn compare_mesh(a: &Mesh, b: &Mesh) {
         assert_eq!(a.vertex_buffer.len(), b.vertex_buffer.len());
         for index in 0..a.vertex_buffer.len() {
             assert_eq!(a.vertex_buffer[index], b.vertex_buffer[index]);
@@ -135,6 +172,31 @@ mod tests {
     }
 
     #[test]
+    fn mesh_deserialize() {
+        let mut vertex_buffer = Vec::new();
+        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+
+        let index_buffer = vec![0, 1, 2, 2, 3, 0];
+
+        let mesh = Mesh::new(vertex_buffer, index_buffer);
+        let mut buffer = Vec::new();
+        mesh.serialize(&mut buffer).unwrap();
+
+        let result = Mesh::deserialize(&buffer).unwrap();
+
+        compare_mesh(&result, &mesh);
+    }
+
+    fn compare_sector(a: &Sector, b: &Sector) {
+        compare_mesh(&a.floor_mesh, &b.floor_mesh);
+        compare_mesh(&a.ceiling_mesh, &b.ceiling_mesh);
+        compare_mesh(&a.wall_mesh, &b.wall_mesh);
+    }
+
+    #[test]
     fn sector_deserialize() {
         let mut vertex_buffer = Vec::new();
         vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
@@ -144,7 +206,11 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let sector = Sector::new(vertex_buffer, index_buffer);
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+
+        let sector = Sector::new(floor_mesh, ceiling_mesh, wall_mesh);
         let mut buffer = Vec::new();
         sector.serialize(&mut buffer).unwrap();
 
@@ -163,8 +229,12 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+
         let mut sectors = Vec::new();
-        sectors.push(Sector::new(vertex_buffer, index_buffer));
+        sectors.push(Sector::new(floor_mesh, ceiling_mesh, wall_mesh));
 
         let map = Map::new(sectors);
 
