@@ -19,8 +19,8 @@ const HEADER_SIZE: usize = 4 + std::mem::size_of::<u32>();
 /// The header magic
 const HEADER_MAGIC: &[u8] = b"MIME";
 
-/// The size of a single vertex (x, y, z, r, g, b, a)
-const VERTEX_SIZE: usize = 7 * std::mem::size_of::<f32>();
+/// The size of a single vertex (x, y, z, u, v, r, g, b, a)
+const VERTEX_SIZE: usize = 9 * std::mem::size_of::<f32>();
 
 /// The size of a single index
 const INDEX_SIZE: usize = std::mem::size_of::<u32>();
@@ -28,12 +28,11 @@ const INDEX_SIZE: usize = std::mem::size_of::<u32>();
 /// A single vertex in 3D space
 #[derive(Copy, Clone, PartialEq, Debug)]
 pub struct Vertex {
-    /// X position
-    pub x: f32,
-    /// Y position
-    pub y: f32,
-    /// Z position
-    pub z: f32,
+    /// Vertex Position (x, y, z)
+    pub pos: [f32; 3],
+
+    /// Texture Coordinates (u, v)
+    pub uv: [f32; 2],
 
     /// The color of the vertex (r, g, b, a)
     pub color: [f32; 4],
@@ -44,18 +43,31 @@ impl Vertex {
     ///
     /// # Arguments
     ///
-    /// * `x` - The x position
-    /// * `y` - The y position
-    /// * `z` - The z position
+    /// * `pos` - Vertex Position (x, y, z)
+    /// * `uv` - Texture Coordinates (u, v)
     /// * `color` - The color (r, g, b, a)
     ///
     /// # Returns
     ///
     /// * [Self] - The new vertex
-    pub fn new(x: f32, y: f32, z: f32, color: [f32; 4]) -> Self {
+    pub fn new(pos: [f32; 3], uv: [f32; 2], color: [f32; 4]) -> Self {
         Self {
-            x, y, z, color
+            pos,
+            uv,
+            color
         }
+    }
+
+    pub fn x(&self) -> f32 {
+        self.pos[0]
+    }
+
+    pub fn y(&self) -> f32 {
+        self.pos[1]
+    }
+
+    pub fn z(&self) -> f32 {
+        self.pos[2]
     }
 
     /// Serialize a vertex the to a buffer
@@ -70,9 +82,13 @@ impl Vertex {
     /// * `Err(`[Error]`)` - Failed to serialize the vertex
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
         // Vertex Position (x, y)
-        buffer.extend_from_slice(&self.x.to_le_bytes());
-        buffer.extend_from_slice(&self.y.to_le_bytes());
-        buffer.extend_from_slice(&self.z.to_le_bytes());
+        buffer.extend_from_slice(&self.pos[0].to_le_bytes());
+        buffer.extend_from_slice(&self.pos[1].to_le_bytes());
+        buffer.extend_from_slice(&self.pos[2].to_le_bytes());
+
+        // Texture Coordinates (u, v)
+        buffer.extend_from_slice(&self.uv[0].to_le_bytes());
+        buffer.extend_from_slice(&self.uv[1].to_le_bytes());
 
         // Vertex Color (r, g, b, a)
         buffer.extend_from_slice(&self.color[0].to_le_bytes());
@@ -108,20 +124,27 @@ impl Vertex {
             buffer[8..12].try_into()
                 .map_err(Error::SliceConvertionError)?);
 
-        let r = f32::from_le_bytes(
+        let u = f32::from_le_bytes(
             buffer[12..16].try_into()
                 .map_err(Error::SliceConvertionError)?);
-        let g = f32::from_le_bytes(
+        let v = f32::from_le_bytes(
             buffer[16..20].try_into()
                 .map_err(Error::SliceConvertionError)?);
-        let b = f32::from_le_bytes(
+
+        let r = f32::from_le_bytes(
             buffer[20..24].try_into()
                 .map_err(Error::SliceConvertionError)?);
-        let a = f32::from_le_bytes(
+        let g = f32::from_le_bytes(
             buffer[24..28].try_into()
                 .map_err(Error::SliceConvertionError)?);
+        let b = f32::from_le_bytes(
+            buffer[28..32].try_into()
+                .map_err(Error::SliceConvertionError)?);
+        let a = f32::from_le_bytes(
+            buffer[32..36].try_into()
+                .map_err(Error::SliceConvertionError)?);
 
-        Ok(Vertex::new(x, y, z, [r, g, b, a]))
+        Ok(Vertex::new([x, y, z], [u, v], [r, g, b, a]))
     }
 }
 

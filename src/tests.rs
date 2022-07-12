@@ -35,7 +35,7 @@ mod tests {
 
     #[test]
     fn vertex_serialize() {
-        let vertex = Vertex::new(0.0, 1.0, 2.0, [3.0, 4.0, 5.0, 6.0]);
+        let vertex = Vertex::new([0.0, 1.0, 2.0], [7.0, 8.0], [3.0, 4.0, 5.0, 6.0]);
         let mut buffer = Vec::new();
         vertex.serialize(&mut buffer).unwrap();
 
@@ -44,6 +44,9 @@ mod tests {
         assert_eq!(parse_f32!(buffer, index), 0.0);
         assert_eq!(parse_f32!(buffer, index), 1.0);
         assert_eq!(parse_f32!(buffer, index), 2.0);
+
+        assert_eq!(parse_f32!(buffer, index), 7.0);
+        assert_eq!(parse_f32!(buffer, index), 8.0);
 
         assert_eq!(parse_f32!(buffer, index), 3.0);
         assert_eq!(parse_f32!(buffer, index), 4.0);
@@ -54,10 +57,10 @@ mod tests {
     #[test]
     fn mesh_serialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
@@ -85,10 +88,10 @@ mod tests {
     #[test]
     fn sector_serialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
@@ -117,10 +120,10 @@ mod tests {
     #[test]
     fn map_serialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
@@ -149,7 +152,7 @@ mod tests {
 
     #[test]
     fn vertex_deserialize() {
-        let vertex = Vertex::new(0.0, 1.0, 2.0, [3.0, 4.0, 5.0, 6.0]);
+        let vertex = Vertex::new([0.0, 1.0, 2.0], [0.0, 0.0], [3.0, 4.0, 5.0, 6.0]);
 
         let mut buffer = Vec::new();
         vertex.serialize(&mut buffer).unwrap();
@@ -174,10 +177,10 @@ mod tests {
     #[test]
     fn mesh_deserialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
@@ -199,10 +202,10 @@ mod tests {
     #[test]
     fn sector_deserialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
@@ -222,10 +225,10 @@ mod tests {
     #[test]
     fn map_deserialize() {
         let mut vertex_buffer = Vec::new();
-        vertex_buffer.push(Vertex::new(0.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(0.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 1.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
-        vertex_buffer.push(Vertex::new(1.0, 0.0, 0.0, [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([0.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 1.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
+        vertex_buffer.push(Vertex::new([1.0, 0.0, 0.0], [0.0, 0.0], [1.0, 1.0, 1.0, 1.0]));
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
