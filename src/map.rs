@@ -154,13 +154,21 @@ pub struct Mesh {
 
     /// The index buffer of the mesh
     pub index_buffer: Vec<Index>,
+
+    /// The Texture ID inside the Texture Table
+    pub texture_id: u64,
 }
 
 impl Mesh {
-    pub fn new(vertex_buffer: Vec<Vertex>, index_buffer: Vec<u32>) -> Self {
+    pub fn new(vertex_buffer: Vec<Vertex>,
+               index_buffer: Vec<u32>,
+               texture_id: u64)
+        -> Self
+    {
         Self {
             vertex_buffer,
             index_buffer,
+            texture_id
         }
     }
 
@@ -259,7 +267,7 @@ impl Mesh {
             index_buffer.push(index);
         }
 
-        Ok(Self::new(vertex_buffer, index_buffer))
+        Ok(Self::new(vertex_buffer, index_buffer, 0))
     }
 }
 
@@ -407,11 +415,6 @@ impl Map {
     /// * `Ok(())` - Successfully serialized the map
     /// * `Err(`[Error]`)` - Failed to serialize the map
     pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
-        // Magic
-        buffer.extend_from_slice(b"MIME");
-        // Version
-        buffer.extend_from_slice(&CURRENT_VERSION.to_le_bytes());
-
         // Serialize the sector count
         let count: u64 =
             self.sectors.len().try_into()
@@ -445,24 +448,6 @@ impl Map {
     ///                   map structure
     /// * `Err(`[Error]`)` - Failed to deserialize the data
     pub fn deserialize(buffer: &[u8]) -> Result<Self> {
-        if buffer.len() < HEADER_SIZE {
-            return Err(Error::BufferToSmallMap);
-        }
-
-        let magic = &buffer[0..4];
-        if magic != HEADER_MAGIC {
-            return Err(Error::IncorrectMagic);
-        }
-
-        let version = u32::from_le_bytes(
-            buffer[4..8].try_into()
-                .map_err(Error::SliceConvertionError)?);
-        if version != CURRENT_VERSION {
-            return Err(Error::IncorrectVersion);
-        }
-
-        let buffer = &buffer[8..];
-
         if buffer.len() < std::mem::size_of::<u64>() {
             return Err(Error::BufferToSmallMap);
         }
@@ -499,6 +484,104 @@ impl Map {
         Ok(Self::new(sectors))
     }
 
+}
+
+pub struct Mime {
+    maps: Vec<Map>,
+    // textures: Vec<Texture>,
+}
+
+impl Mime {
+    pub fn new() -> Self {
+        Self {
+            maps: Vec::new(),
+        }
+    }
+
+    pub fn add_map(&mut self, map: Map) {
+        self.maps.push(map);
+    }
+
+    pub fn serialize(&self, buffer: &mut Vec<u8>) -> Result<()> {
+        // Magic
+        buffer.extend_from_slice(b"MIME");
+
+        // Version
+        buffer.extend_from_slice(&CURRENT_VERSION.to_le_bytes());
+
+        let map_count: u64 =
+            self.maps.len().try_into()
+                .map_err(Error::IntegerConvertionError)?;
+        buffer.extend_from_slice(&map_count.to_le_bytes());
+
+        for map in &self.maps {
+            let mut map_buffer = Vec::new();
+            map.serialize(&mut map_buffer)?;
+
+            let map_size: u64 =
+                map_buffer.len().try_into()
+                    .map_err(Error::IntegerConvertionError)?;
+            buffer.extend_from_slice(&map_size.to_le_bytes());
+            buffer.extend_from_slice(&map_buffer);
+        }
+
+        return Ok(());
+    }
+
+    pub fn deserialize(buffer: &[u8]) -> Result<Self> {
+        if buffer.len() < HEADER_SIZE {
+            return Err(Error::BufferToSmallMap);
+        }
+
+        let magic = &buffer[0..4];
+        if magic != HEADER_MAGIC {
+            return Err(Error::IncorrectMagic);
+        }
+
+        let version = u32::from_le_bytes(
+            buffer[4..8].try_into()
+                .map_err(Error::SliceConvertionError)?);
+        if version != CURRENT_VERSION {
+            return Err(Error::IncorrectVersion);
+        }
+
+        let buffer = &buffer[8..];
+
+        let map_count = u64::from_le_bytes(
+            buffer[0..8].try_into()
+                .map_err(Error::SliceConvertionError)?);
+        let map_count: usize = map_count.try_into()
+            .map_err(Error::IntegerConvertionError)?;
+
+        let buffer = &buffer[8..];
+
+        let mut maps = Vec::with_capacity(map_count);
+
+        let mut offset = 0;
+        for _i in 0..map_count {
+            let start = offset;
+
+            let map_size = u64::from_le_bytes(
+                buffer[start..start + 8].try_into()
+                    .map_err(Error::SliceConvertionError)?);
+            let map_size: usize = map_size.try_into()
+                .map_err(Error::IntegerConvertionError)?;
+
+            let start = start + std::mem::size_of::<u64>();
+
+            let map =
+                Map::deserialize(&buffer[start..start + map_size])?;
+            maps.push(map);
+
+            offset += map_size + std::mem::size_of::<u64>();
+        }
+
+        return Ok(Self {
+            maps
+        });
+    }
+
+    // TODO(patrik): Fix comment
     /// Serialize the map and write the serialized data to a file
     ///
     /// # Arguments

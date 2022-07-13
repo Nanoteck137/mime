@@ -64,7 +64,7 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let mesh = Mesh::new(vertex_buffer, index_buffer);
+        let mesh = Mesh::new(vertex_buffer, index_buffer, 0);
 
         let mut buffer = Vec::new();
         mesh.serialize(&mut buffer);
@@ -95,9 +95,9 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
 
         let sector = Sector::new(floor_mesh, ceiling_mesh, wall_mesh);
         let mut buffer = Vec::new();
@@ -127,9 +127,9 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
 
         let mut sectors = Vec::new();
         sectors.push(Sector::new(floor_mesh, ceiling_mesh, wall_mesh));
@@ -184,7 +184,7 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let mesh = Mesh::new(vertex_buffer, index_buffer);
+        let mesh = Mesh::new(vertex_buffer, index_buffer, 0);
         let mut buffer = Vec::new();
         mesh.serialize(&mut buffer).unwrap();
 
@@ -209,9 +209,9 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
 
         let sector = Sector::new(floor_mesh, ceiling_mesh, wall_mesh);
         let mut buffer = Vec::new();
@@ -232,9 +232,9 @@ mod tests {
 
         let index_buffer = vec![0, 1, 2, 2, 3, 0];
 
-        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
-        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone());
+        let floor_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let ceiling_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
+        let wall_mesh = Mesh::new(vertex_buffer.clone(), index_buffer.clone(), 0);
 
         let mut sectors = Vec::new();
         sectors.push(Sector::new(floor_mesh, ceiling_mesh, wall_mesh));
